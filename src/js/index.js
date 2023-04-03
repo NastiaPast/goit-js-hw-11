@@ -21,7 +21,7 @@ loadBtnEl.addEventListener('click', handleClick);
 handleScroll();
 handleClickBtn();
 
-function handleSubmit(event) {
+async function handleSubmit(event) {
   event.preventDefault();
   window.scrollTo({ top: 0 });
   page = 1;
@@ -30,56 +30,60 @@ function handleSubmit(event) {
   loadBtnEl.classList.add('is-hidden');
 
   if (query === '') {
-   Notify.failure(
-     'The search string cannot be empty. Please specify your search query.'
-   );
+    Notify.failure(
+      'The search string cannot be empty. Please specify your search query.'
+    );
     return;
   }
 
-  fetchImages(query, page, perPage)
-    .then(({ data }) => {
-      if (data.totalHits === 0) {
-         Notify.failure(
-           'Sorry, there are no images matching your search query. Please try again.'
-         );
-      } else {
-        renderGallery(data.hits);
-        simpleLightBox = new SimpleLightbox('.gallery a').refresh();
-         Notify.success(`Hooray! We found ${data.totalHits} images.`);
+  try {
+    const { data } = await fetchImages(query, page, perPage);
+    if (data.totalHits === 0) {
+      Notify.failure(
+        `Sorry, there are no images matching your search query. Please try again.`
+      );
+    } else {
+      renderGallery(data.hits);
+      simpleLightBox = new SimpleLightbox('.gallery a').refresh();
+      Notify.success(`Hooray! We found ${data.totalHits} images.`);
 
-        if (data.totalHits > perPage) {
-          loadBtnEl.classList.remove('is-hidden');
-        }
+      if (data.totalHits > perPage) {
+        loadBtnEl.classList.remove('is-hidden');
       }
-    })
-    .catch(error => console.log(error))
-    .finally(() => {
-      formEl.reset();
-    });
+    }
+  } catch (error) {
+    console.log(error);
+  } finally {
+    formEl.reset();
+  }
 }
 
-function handleClick() {
+async function handleClick() {
   page += 1;
   simpleLightBox.destroy();
 
-  fetchImages(query, page, perPage)
-    .then(({ data }) => {
-      renderGallery(data.hits);
-      simpleLightBox = new SimpleLightbox('.gallery a').refresh();
+  try {
+    const { data } = await fetchImages(query, page, perPage);
+    renderGallery(data.hits);
+    simpleLightBox = new SimpleLightbox('.gallery a').refresh();
+    const totalPages = Math.ceil(data.totalHits / perPage);
 
-      const totalPages = Math.ceil(data.totalHits / perPage);
-
-      if (page > totalPages) {
-        loadBtnEl.classList.add('is-hidden');
-         Notify.info(
-           "We're sorry, but you've reached the end of search results."
-         );
-      }
-    })
-    .catch(error => console.log(error));
+    if (page > totalPages) {
+      loadBtnEl.classList.add('is-hidden');
+      Notify.info("We're sorry, but you've reached the end of search results.");
+    }
+    smoothScroll();
+  } catch (error) {
+    console.log(error);
+  }
 }
+function smoothScroll() {
+  const { height: cardHeight } = document
+    .querySelector('.gallery')
+    .firstElementChild.getBoundingClientRect();
 
-
-
-
-
+  window.scrollBy({
+    top: cardHeight * 2,
+    behavior: 'smooth',
+  });
+}
